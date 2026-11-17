@@ -1588,6 +1588,62 @@ class SchedulerTests(TestCase):
         schedule.clear()
         assert len(schedule.jobs) == 0
 
+    def test_run_all_delay_seconds_no_wait_for_zero_jobs(self):
+        """run_all with 0 jobs should not call time.sleep at all."""
+        with mock.patch("time.sleep") as mock_sleep:
+            schedule.run_all(delay_seconds=10)
+            mock_sleep.assert_not_called()
+
+    def test_run_all_delay_seconds_no_wait_for_single_job(self):
+        """run_all with 1 job should not call time.sleep (no inter-job gap)."""
+        mock_job = make_mock_job()
+        every().minute.do(mock_job)
+        with mock.patch("time.sleep") as mock_sleep:
+            schedule.run_all(delay_seconds=10)
+            mock_sleep.assert_not_called()
+        assert mock_job.call_count == 1
+
+    def test_run_all_delay_seconds_waits_between_jobs_only(self):
+        """run_all with 3 jobs should wait exactly 2 times (between jobs only)."""
+        mock_job = make_mock_job()
+        every().minute.do(mock_job)
+        every().hour.do(mock_job)
+        every().day.do(mock_job)
+        with mock.patch("time.sleep") as mock_sleep:
+            schedule.run_all(delay_seconds=5)
+            # Should sleep 2 times: after job1 and after job2, NOT after job3
+            assert mock_sleep.call_count == 2
+            mock_sleep.assert_called_with(5)
+        assert mock_job.call_count == 3
+
+    def test_run_all_delay_seconds_zero_no_sleep(self):
+        """run_all with delay_seconds=0 should not call time.sleep."""
+        mock_job = make_mock_job()
+        every().minute.do(mock_job)
+        every().hour.do(mock_job)
+        with mock.patch("time.sleep") as mock_sleep:
+            schedule.run_all(delay_seconds=0)
+            mock_sleep.assert_not_called()
+        assert mock_job.call_count == 2
+
+    def test_run_all_delay_seconds_with_self_cancelling_job(self):
+        """run_all with delay_seconds should not sleep after the last remaining job,
+        even when some jobs cancel themselves during execution."""
+        def cancel_job():
+            return schedule.CancelJob
+
+        mock_job = make_mock_job()
+        every().second.do(cancel_job)
+        every().minute.do(mock_job)
+        with mock.patch("time.sleep") as mock_sleep:
+            schedule.run_all(delay_seconds=3)
+            # 2 jobs total, so only 1 inter-job sleep expected
+            assert mock_sleep.call_count == 1
+            mock_sleep.assert_called_with(3)
+        assert mock_job.call_count == 1
+        # The cancelling job was removed, the other remains
+        assert len(schedule.jobs) == 1
+
     def test_misconfigured_job_wont_break_scheduler(self):
         """
         Ensure an interrupted job definition chain won't break
