@@ -100,7 +100,9 @@ class Scheduler:
         for job in sorted(runnable_jobs):
             self._run_job(job)
 
-    def run_all(self, delay_seconds: int = 0) -> None:
+    def run_all(
+        self, delay_seconds: int = 0, tag: Optional[Hashable] = None
+    ) -> None:
         """
         Run all jobs regardless if they are scheduled to run or not.
 
@@ -109,13 +111,16 @@ class Scheduler:
         over time.
 
         :param delay_seconds: A delay added between every executed job
+        :param tag: An optional identifier used to identify a subset of
+                    jobs to run. If omitted, all jobs are run.
         """
+        tag_jobs = self.get_jobs(tag)
         logger.debug(
             "Running *all* %i jobs with %is delay in between",
-            len(self.jobs),
+            len(tag_jobs),
             delay_seconds,
         )
-        for job in self.jobs[:]:
+        for job in tag_jobs:
             self._run_job(job)
             time.sleep(delay_seconds)
 
@@ -854,11 +859,11 @@ def run_pending() -> None:
     default_scheduler.run_pending()
 
 
-def run_all(delay_seconds: int = 0) -> None:
+def run_all(delay_seconds: int = 0, tag: Optional[Hashable] = None) -> None:
     """Calls :meth:`run_all <Scheduler.run_all>` on the
     :data:`default scheduler instance <default_scheduler>`.
     """
-    default_scheduler.run_all(delay_seconds=delay_seconds)
+    default_scheduler.run_all(delay_seconds=delay_seconds, tag=tag)
 
 
 def get_jobs(tag: Optional[Hashable] = None) -> List[Job]:

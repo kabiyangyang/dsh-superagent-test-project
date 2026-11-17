@@ -1597,3 +1597,55 @@ class SchedulerTests(TestCase):
         scheduler.every()
         scheduler.every(10).seconds
         scheduler.run_pending()
+
+    def test_run_all_with_tag(self):
+        mock_job = make_mock_job()
+        every().minute.do(mock_job).tag("tag1")
+        every().hour.do(mock_job).tag("tag2")
+        every().day.at("11:00").do(mock_job).tag("tag1", "tag2")
+        schedule.run_all(tag="tag1")
+        assert mock_job.call_count == 2
+
+    def test_run_all_with_tag_no_match(self):
+        mock_job = make_mock_job()
+        every().minute.do(mock_job).tag("tag1")
+        every().hour.do(mock_job).tag("tag2")
+        schedule.run_all(tag="nonexistent")
+        assert mock_job.call_count == 0
+
+    def test_run_all_without_tag_runs_all(self):
+        mock_job = make_mock_job()
+        every().minute.do(mock_job).tag("tag1")
+        every().hour.do(mock_job).tag("tag2")
+        every().day.at("11:00").do(mock_job)
+        schedule.run_all()
+        assert mock_job.call_count == 3
+
+    def test_run_all_with_tag_multiple_tags_on_job(self):
+        mock_job = make_mock_job()
+        every().minute.do(mock_job).tag("tag1", "tag2")
+        every().hour.do(mock_job).tag("tag3")
+        schedule.run_all(tag="tag2")
+        assert mock_job.call_count == 1
+
+    def test_run_all_with_tag_self_cancelling_job(self):
+        def stop_job():
+            return schedule.CancelJob
+
+        mock_job = make_mock_job()
+        every().second.do(stop_job).tag("tag1")
+        every().second.do(mock_job).tag("tag1")
+        every().second.do(mock_job).tag("tag2")
+        schedule.run_all(tag="tag1")
+        assert mock_job.call_count == 1
+        # stop_job (tag1) self-cancelled, mock_job (tag1) and mock_job (tag2)
+        # remain, so 2 jobs left
+        assert len(schedule.jobs) == 2
+
+    def test_run_all_with_tag_on_scheduler_instance(self):
+        scheduler = schedule.Scheduler()
+        mock_job = make_mock_job()
+        scheduler.every().minute.do(mock_job).tag("tag1")
+        scheduler.every().hour.do(mock_job).tag("tag2")
+        scheduler.run_all(tag="tag1")
+        assert mock_job.call_count == 1
