@@ -120,9 +120,10 @@ class Scheduler:
             len(tag_jobs),
             delay_seconds,
         )
-        for job in tag_jobs:
+        for i, job in enumerate(tag_jobs):
             self._run_job(job)
-            time.sleep(delay_seconds)
+            if i < len(tag_jobs) - 1 and delay_seconds:
+                time.sleep(delay_seconds)
 
     def get_jobs(self, tag: Optional[Hashable] = None) -> List["Job"]:
         """
