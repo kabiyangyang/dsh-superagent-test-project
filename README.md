@@ -24,7 +24,22 @@
 3. Super Agent 将自动接收任务，创建分支、修改代码并提交 Pull Request。
 4. 在 PR 中审查变更，确认无误后合并即可。
 
-### 注意事项
+## 项目列表
+
+**[schedule](projects/schedule/)**
+
+Python 任务调度库，导入自 [dbader/schedule](https://github.com/dbader/schedule)。提供简洁的人性化 API 来调度周期性任务。
+
+**运行测试：**
+
+```bash
+cd projects/schedule
+python -m pytest test_schedule.py -v
+```
+
+> 部分时区相关测试需要安装 `pytz`：`pip install pytz`
+
+## 注意事项
 
 - Super Agent 不会直接推送到 `main` 分支，所有变更均通过 PR 提交。
 - 每个 PR 需要人工审查后手动合并。
